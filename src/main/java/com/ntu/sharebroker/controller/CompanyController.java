@@ -1,5 +1,6 @@
 package com.ntu.sharebroker.controller;
 
+import com.ntu.sharebroker.dto.AdvanceSearchDTO;
 import com.ntu.sharebroker.dto.CompanyTweetsDTO;
 import com.ntu.sharebroker.entity.Company;
 import com.ntu.sharebroker.service.CompanyService;
@@ -52,6 +53,11 @@ public class CompanyController {
     @GetMapping("/get-tweets/{name}")
     public ResponseEntity<List<CompanyTweetsDTO>> getTweets(@PathVariable String name) {
         return service.getTweets(name);
+    }
+
+    @PostMapping("/advance-search")
+    public ResponseEntity<List<Company>> advanceSearch(@RequestBody AdvanceSearchDTO item) {
+        return service.advanceSearch(item);
     }
 
 }

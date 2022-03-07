@@ -1,9 +1,11 @@
 package com.ntu.sharebroker.service;
 
+import com.ntu.sharebroker.dto.AdvanceSearchDTO;
 import com.ntu.sharebroker.dto.CompanyTweetsDTO;
 import com.ntu.sharebroker.entity.Company;
-import com.ntu.sharebroker.entity.Currency;
+import com.ntu.sharebroker.entity.Transaction;
 import com.ntu.sharebroker.repository.CompanyRepository;
+import com.ntu.sharebroker.repository.TransactionRepository;
 import com.ntu.sharebroker.utils.HttpUtils;
 import com.ntu.sharebroker.utils.MapperUtils;
 import org.json.simple.JSONArray;
@@ -11,16 +13,11 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,11 +28,14 @@ public class CompanyService {
     Logger logger = Logger.getLogger(CompanyService.class.getName());
 
     @Autowired
-    private CompanyRepository repository;
+    private CompanyRepository companyRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     public ResponseEntity<Company> create(Company item) {
         try {
-            Company savedItem = repository.save(item);
+            Company savedItem = companyRepository.save(item);
             return new ResponseEntity<>(savedItem, HttpStatus.CREATED);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Company create: " + e.getMessage());
@@ -46,7 +46,7 @@ public class CompanyService {
     public ResponseEntity<List<Company>> getAll() {
         try {
             List<Company> items = new ArrayList<Company>();
-            items.addAll(repository.findAll());
+            items.addAll(companyRepository.findAll());
             return new ResponseEntity<>(items, HttpStatus.OK);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Company getAll: " + e.getMessage());
@@ -56,7 +56,7 @@ public class CompanyService {
 
     public ResponseEntity<Company> getByShortName(String shortName) {
         try {
-            Optional<Company> items = repository.findByShortName(shortName);
+            Optional<Company> items = companyRepository.findByShortName(shortName);
             if (items.isPresent()) {
                 return new ResponseEntity<>(items.get(), HttpStatus.OK);
             } else {
@@ -69,7 +69,7 @@ public class CompanyService {
     }
 
     public ResponseEntity<Company> getById(int id) {
-        Optional<Company> existingItemOptional = repository.findById(id);
+        Optional<Company> existingItemOptional = companyRepository.findById(id);
         if (existingItemOptional.isPresent()) {
             return new ResponseEntity<>(existingItemOptional.get(), HttpStatus.OK);
         } else {
@@ -79,7 +79,7 @@ public class CompanyService {
 
     public ResponseEntity<HttpStatus> deleteById(int id) {
         try {
-            repository.deleteById(id);
+            companyRepository.deleteById(id);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Company deleteById: " + e.getMessage());
@@ -89,11 +89,11 @@ public class CompanyService {
 
     public ResponseEntity<Company> update(int id, Company item) {
         try {
-            Optional<Company> existingItemOptional = repository.findById(id);
+            Optional<Company> existingItemOptional = companyRepository.findById(id);
             if (existingItemOptional.isPresent()) {
                 Company existingItem = existingItemOptional.get();
                 MapperUtils.merge(existingItem, item);
-                return new ResponseEntity<>(repository.save(existingItem), HttpStatus.OK);
+                return new ResponseEntity<>(companyRepository.save(existingItem), HttpStatus.OK);
             } else {
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
@@ -107,7 +107,7 @@ public class CompanyService {
     public void updateSharePrice() {
         logger.info("Updating Share Price at " + Calendar.getInstance().getTime());
 
-        List<Company> companies = new ArrayList<Company>(repository.findAll());
+        List<Company> companies = new ArrayList<Company>(companyRepository.findAll());
         for (Company company : companies) {
             String companyCode = company.getShortName();
             try {
@@ -124,7 +124,7 @@ public class CompanyService {
         }
 
         System.out.println("Saving All new values");
-        repository.saveAll(companies);
+        companyRepository.saveAll(companies);
     }
 
     private JSONObject getSharePriceData(String response) throws ParseException {
@@ -178,4 +178,61 @@ public class CompanyService {
 
         return companyTweetsDTOList;
     }
+
+    public ResponseEntity<List<Company>> advanceSearch(AdvanceSearchDTO item) {
+        try {
+            cleanAdvanceSearchQuery(item);
+            List<Company> allCompany = companyRepository.advanceSearch(
+                    item.getCompanyName(),
+                    item.getSharePriceStart(),
+                    item.getSharePriceEnd(),
+                    item.getRemainingSharesStart(),
+                    item.getRemainingSharesEnd());
+            if (!allCompany.isEmpty()) {
+                Optional<List<Transaction>> transactions = transactionRepository.findByUserId(item.getUserId());
+                if (transactions.isPresent() && item.getPrevTransaction() != item.getNoPrevTransaction()) {
+                    List<Company> prevTransCompany = new ArrayList<>();
+                    for (Company company : allCompany) {
+                        for (Transaction transaction: transactions.get()) {
+                            if (Objects.equals(company.getId(), transaction.getCompanyId())) {
+                                prevTransCompany.add(company);
+                                break;
+                            }
+                        }
+                    }
+                    if (item.getPrevTransaction()) {
+                        return new ResponseEntity<>(prevTransCompany, HttpStatus.OK);
+                    } else {
+                        for (Company company : prevTransCompany) {
+                            allCompany.remove(company);
+                        }
+                        return new ResponseEntity<>(allCompany, HttpStatus.OK);
+                    }
+                }
+                return new ResponseEntity<>(allCompany, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(null, HttpStatus.NO_CONTENT);
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Company getByShortName: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private void cleanAdvanceSearchQuery(AdvanceSearchDTO item) {
+        if (item.getSharePriceEnd() == null || item.getSharePriceEnd() == 0) {
+            item.setSharePriceEnd(1000000000F);
+        }
+        if (item.getRemainingSharesEnd() == null || item.getRemainingSharesEnd() == 0) {
+            item.setRemainingSharesEnd(1000000000F);
+        }
+        if (item.getSharePriceStart() == null) {
+            item.setSharePriceStart(0F);
+        }
+        if (item.getRemainingSharesStart() == null) {
+            item.setRemainingSharesStart(0F);
+        }
+    }
+
+
 }
