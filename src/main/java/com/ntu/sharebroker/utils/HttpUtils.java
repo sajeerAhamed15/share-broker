@@ -10,7 +10,7 @@ public class HttpUtils {
         URL url = new URL(urlString);
         HttpURLConnection connURL = (HttpURLConnection) url.openConnection();
         connURL.setRequestMethod("GET");
-        System.out.println("\nMaking HTTP call: " + connURL + "\n");
+        System.out.println("\nMaking HTTP call: " + urlString + "\n");
         connURL.connect();
 
         BufferedReader ins = new BufferedReader(new InputStreamReader(connURL.getInputStream()));
@@ -31,7 +31,7 @@ public class HttpUtils {
         HttpURLConnection connURL = (HttpURLConnection) url.openConnection();
         connURL.setRequestMethod("GET");
         connURL.setRequestProperty("Authorization", "Bearer AAAAAAAAAAAAAAAAAAAAAGHKZwEAAAAAj73OPM9SS8Pks3J%2F0wAIKQMcskc%3DTzQKZwiP6q7HwBROCAC0o7awZvmGIoBR3DNMHcSDG4da5fvLsx");
-        System.out.println("\nMaking HTTP call: " + connURL + "\n");
+        System.out.println("\nMaking HTTP call: " + urlString + "\n");
         connURL.connect();
 
         BufferedReader ins = new BufferedReader(new InputStreamReader(connURL.getInputStream()));

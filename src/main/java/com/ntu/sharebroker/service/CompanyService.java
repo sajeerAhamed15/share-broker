@@ -104,7 +104,7 @@ public class CompanyService {
     }
 
     @Scheduled(cron = "0 0/30 * * * ?")
-    public void updateSharePrice() {
+    public void updateSharePriceEvent() {
         logger.info("Updating Share Price at " + Calendar.getInstance().getTime());
 
         List<Company> companies = new ArrayList<Company>(companyRepository.findAll());
@@ -211,7 +211,7 @@ public class CompanyService {
                 }
                 return new ResponseEntity<>(allCompany, HttpStatus.OK);
             } else {
-                return new ResponseEntity<>(null, HttpStatus.NO_CONTENT);
+                return new ResponseEntity<>(Collections.emptyList(), HttpStatus.OK);
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Company getByShortName: " + e.getMessage());
@@ -235,4 +235,8 @@ public class CompanyService {
     }
 
 
+    public ResponseEntity<HttpStatus> updateSharePrice() {
+        updateSharePriceEvent();
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
 }

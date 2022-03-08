@@ -64,5 +64,11 @@ public class CurrencyController {
     public ResponseEntity<Float> exchangeRate(@RequestParam String from, @RequestParam String to) {
         return service.exchangeRate(from, to);
     }
+
+    @GetMapping("/update-exchange-rate")
+    public ResponseEntity<HttpStatus> updateExchangeRate() {
+        return service.updateExchangeRate();
+    }
+
 }
 

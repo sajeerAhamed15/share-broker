@@ -60,4 +60,9 @@ public class CompanyController {
         return service.advanceSearch(item);
     }
 
+    @GetMapping("/update-share-price")
+    public ResponseEntity<HttpStatus> updateSharePrice() {
+        return service.updateSharePrice();
+    }
+
 }

@@ -177,4 +177,25 @@ public class CurrencyService {
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    public void updateSingleExchangeRate(String curr) {
+        try {
+            String url1 = createUrl(curr, "USD");
+            String resultsFrom = HttpUtils.httpRequest(url1);
+            updateRate(resultsFrom, curr);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Currency updateSingleExchangeRate: " + e.getMessage());
+        }
+    }
+
+    public ResponseEntity<HttpStatus> updateExchangeRate() {
+        List<Currency> currencies = repository.findAll();
+        for (Currency currency : currencies) {
+            try {
+                updateSingleExchangeRate(currency.getCode());
+            } catch (Exception ignore) {}
+        }
+
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
 }
