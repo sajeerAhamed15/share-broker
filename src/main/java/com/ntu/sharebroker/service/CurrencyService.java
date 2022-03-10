@@ -162,7 +162,7 @@ public class CurrencyService {
     }
 
     private String createUrl(String from, String to) {
-        return "http://localhost:8080/CurConvRS/webresources/exchangeRate?" +
+        return "http://40.71.194.220:8080/CurConvRS/webresources/exchangeRate?" +
                 "from=" + from + "&to=" + to;
     }
 
